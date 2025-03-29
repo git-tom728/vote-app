@@ -34,6 +34,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  firebase_core: ^2.0.0
 
   cupertino_icons: ^1.0.8
   path_provider: ^2.0.14
