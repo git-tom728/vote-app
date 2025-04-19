@@ -83,4 +83,5 @@ class DefaultFirebaseOptions {
     authDomain: 'vote-app1.firebaseapp.com',
     storageBucket: 'vote-app1.firebasestorage.app',
   );
+
 }

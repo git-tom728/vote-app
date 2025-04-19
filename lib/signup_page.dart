@@ -1,35 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'signup_page.dart';
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+
+class SignupPage extends StatefulWidget {
+  const SignupPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<SignupPage> createState() => _SignupPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _SignupPageState extends State<SignupPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String _error = '';
 
-  Future<void> _login() async {
+  Future<void> _signup() async {
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      Navigator.pop(context); // 登録成功後にログイン画面に戻る
     } catch (e) {
       setState(() {
-        _error = "ログインに失敗しました";
+        _error = "登録に失敗しました：${e.toString()}";
       });
     }
+
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("ログイン")),
+      appBar: AppBar(title: const Text("新規登")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -46,19 +48,7 @@ class _LoginPageState extends State<LoginPage> {
               obscureText: true,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _login, child: const Text("ログイン")),
-
-            // ✅ ここに新規登録ボタンを追加！
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SignupPage()),
-                );
-              },
-              child: const Text("新規登録"),
-            ),
+            ElevatedButton(onPressed: _signup, child: const Text("登録")),
           ],
         ),
       ),
