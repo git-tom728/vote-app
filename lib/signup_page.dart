@@ -13,19 +13,24 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController _passwordController = TextEditingController();
   String _error = '';
 
-  Future<void> _signup() async {
+Future<void> _signup() async {
     try {
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      Navigator.pop(context); // 登録成功後にログイン画面に戻る
-    } catch (e) {
+      // Navigator.pop(context); // 登録成功後にログイン画面に戻る
+    } catch (e, stackTrace) {
+      // エラー出力は外でやる！
+      print('エラー内容: $e');
+      print('スタックトレース:');
+      print(stackTrace);
+
+      // UI側のエラーメッセージだけ setState に渡す
       setState(() {
         _error = "登録に失敗しました：${e.toString()}";
       });
     }
-
   }
 
   @override
