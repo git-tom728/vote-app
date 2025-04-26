@@ -19,7 +19,7 @@ Future<void> _signup() async {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      // Navigator.pop(context); // 登録成功後にログイン画面に戻る
+      Navigator.pop(context); // 登録成功後にログイン画面に戻る
     } catch (e, stackTrace) {
       // エラー出力は外でやる！
       print('エラー内容: $e');
