@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_page.dart';
+import 'main.dart';
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -19,12 +20,19 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+
+      // ✅ ログイン成功したらHomeScreenに移動
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
     } catch (e) {
       setState(() {
         _error = "ログインに失敗しました";
       });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
