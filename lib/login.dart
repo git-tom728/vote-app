@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'signup_page.dart';
+import 'signup.dart';
 import 'main.dart'; // ← HomeScreenに移動するために必要！
 
 class LoginPage extends StatefulWidget {
