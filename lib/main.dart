@@ -4,8 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
 import 'login_page.dart';
-import 'post.dart'; // ← 追加
-import 'vote.dart'; // ← 追加
+import 'post.dart';
+import 'vote.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,12 +20,36 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Firebase Login Demo',
-      home: const LoginPage(), // 最初はログインページ
+      home: const AuthGate(), // ← ここをLoginPageからAuthGateに変更！
     );
   }
 }
 
-// 🏠 ログイン後に遷移するホーム画面（投稿＆投票）
+// 🔥【追加】ログインしてるかどうかで画面を出し分けるクラス
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(), // ログイン状態を監視
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasData) {
+          return const HomeScreen(); // ログイン済みなら投稿・投票画面へ
+        } else {
+          return const LoginPage(); // ログインしてなければログインページへ
+        }
+      },
+    );
+  }
+}
+
+// 🏠 ログイン後に遷移するホーム画面（投稿・投票）
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -34,7 +58,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0; // 0: 投稿画面, 1: 投票画面
+  int _selectedIndex = 0;
   final List<Map<String, Map<String, bool>>> _posts = [];
   final List<bool> _isVoted = [];
 
@@ -72,11 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              if (!mounted) return;
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-              );
+              // ✅ ログアウト後は勝手にLoginPageに切り替わるので何も書かなくてOK！
             },
           ),
         ],
@@ -84,13 +104,13 @@ class _HomeScreenState extends State<HomeScreen> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          PostScreen(addPost: _addPost, posts: _posts), // ← PostScreen呼び出し
+          PostScreen(addPost: _addPost, posts: _posts),
           VoteScreen(
             posts: _posts,
             isVoted: _isVoted,
             toggleVote: _toggleVote,
             confirmVote: _confirmVote,
-          ), // ← VoteScreen呼び出し
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

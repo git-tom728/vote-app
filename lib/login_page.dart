@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_page.dart';
-import 'main.dart';
+import 'main.dart'; // ← HomeScreenに移動するために必要！
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -20,8 +21,8 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-
-      // ✅ ログイン成功したらHomeScreenに移動
+      // ✅ ログイン成功したらホーム画面に遷移
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -32,7 +33,6 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -55,8 +55,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(onPressed: _login, child: const Text("ログイン")),
-
-            // ✅ ここに新規登録ボタンを追加！
             const SizedBox(height: 8),
             ElevatedButton(
               onPressed: () {

@@ -7,7 +7,7 @@ class PostScreen extends StatefulWidget {
   const PostScreen({super.key, required this.addPost, required this.posts});
 
   @override
-  _PostScreenState createState() => _PostScreenState();
+  State<PostScreen> createState() => _PostScreenState();
 }
 
 class _PostScreenState extends State<PostScreen> {
@@ -42,7 +42,7 @@ class _PostScreenState extends State<PostScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
+                children: [
                   TextField(
                     controller: _titleController,
                     decoration: const InputDecoration(labelText: '題目'),
