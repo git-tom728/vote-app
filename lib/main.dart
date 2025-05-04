@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
-import 'login_page.dart';
+import 'login.dart';
 import 'post.dart';
 import 'vote.dart';
 
