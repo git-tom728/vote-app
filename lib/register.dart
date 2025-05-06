@@ -16,11 +16,11 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _register() async {
     try {
-      // final credential = await FirebaseAuth.instance
-      //     .createUserWithEmailAndPassword(
-      //       email: _emailController.text.trim(),
-      //       password: _passwordController.text,
-      //     );
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
 
       if (!mounted) return;
 
