@@ -2,98 +2,82 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class VoteScreen extends StatelessWidget {
-  const VoteScreen({super.key});
+class VoteScreen extends StatefulWidget {
+  const VoteScreen({Key? key}) : super(key: key);
 
-  // 投票処理
-  Future<void> _vote(String postId, String selectedOption) async {
-    final user = FirebaseAuth.instance.currentUser;
+  @override
+  State<VoteScreen> createState() => _VoteScreenState();
+}
+
+class _VoteScreenState extends State<VoteScreen> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  void _vote(String postId) async {
+    final user = _auth.currentUser;
     if (user == null) return;
 
-    final postRef = FirebaseFirestore.instance.collection('posts').doc(postId);
+    final voteRef = FirebaseFirestore.instance
+        .collection('votes')
+        .doc('${postId}_${user.uid}');
 
-    await FirebaseFirestore.instance.runTransaction((transaction) async {
-      final snapshot = await transaction.get(postRef);
-      final data = snapshot.data();
+    final voteSnap = await voteRef.get();
 
-      // すでに投票していたら何もしない（例：uidリストに含まれてたら）
-      final votedUsers = List<String>.from(data?['votedUsers'] ?? []);
-      if (votedUsers.contains(user.uid)) return;
+    if (voteSnap.exists) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('すでに投票済みです。')));
+      return;
+    }
 
-      final options = Map<String, dynamic>.from(data?['options'] ?? {});
-      options[selectedOption] = (options[selectedOption] ?? 0) + 1;
-
-      votedUsers.add(user.uid);
-
-      transaction.update(postRef, {
-        'options': options,
-        'votedUsers': votedUsers,
-      });
+    await voteRef.set({
+      'postId': postId,
+      'userId': user.uid,
+      'timestamp': FieldValue.serverTimestamp(),
     });
+
+    final postRef = FirebaseFirestore.instance.collection('posts').doc(postId);
+    await postRef.update({'votes': FieldValue.increment(1)});
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('投票しました！')));
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('posts')
-              .orderBy('createdAt', descending: true)
-              .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const CircularProgressIndicator();
+    return Scaffold(
+      appBar: AppBar(title: const Text('投票一覧')),
+      body: StreamBuilder<QuerySnapshot>(
+        stream:
+            FirebaseFirestore.instance
+                .collection('posts')
+                .orderBy('timestamp', descending: true)
+                .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const CircularProgressIndicator();
 
-        final posts = snapshot.data!.docs;
+          final posts = snapshot.data!.docs;
 
-        if (posts.isEmpty) {
-          return const Center(child: Text("投稿がありません"));
-        }
+          return ListView.builder(
+            itemCount: posts.length,
+            itemBuilder: (context, index) {
+              final post = posts[index];
+              final postId = post.id;
+              final content = post['content'];
+              final votes = post['votes'] ?? 0;
 
-        return ListView.builder(
-          itemCount: posts.length,
-          itemBuilder: (context, index) {
-            final post = posts[index];
-            final data = post.data() as Map<String, dynamic>;
-            final title = data['title'] ?? '';
-            final options = Map<String, dynamic>.from(data['options'] ?? {});
-            final votedUsers = List<String>.from(data['votedUsers'] ?? []);
-            final userId = FirebaseAuth.instance.currentUser?.uid;
-
-            final hasVoted = userId != null && votedUsers.contains(userId);
-
-            return Card(
-              margin: const EdgeInsets.all(10),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    for (final entry in options.entries)
-                      ListTile(
-                        title: Text("${entry.key}（${entry.value}票）"),
-                        trailing:
-                            hasVoted
-                                ? null
-                                : ElevatedButton(
-                                  onPressed: () => _vote(post.id, entry.key),
-                                  child: const Text("投票"),
-                                ),
-                      ),
-                  ],
+              return ListTile(
+                title: Text(content),
+                subtitle: Text('投票数: $votes'),
+                trailing: ElevatedButton(
+                  onPressed: () => _vote(postId),
+                  child: const Text('投票'),
                 ),
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
