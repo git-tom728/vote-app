@@ -7,6 +7,7 @@ import 'login.dart';
 import 'register.dart';
 import 'post.dart';
 import 'vote.dart';
+import 'myself.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -94,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedIndex == 0 ? '投稿' : '投票'),
+        title: Text(_selectedIndex == 0 ? '投稿' : _selectedIndex == 1 ? '投票' : 'マイページ'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -106,9 +107,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: IndexedStack(
         index: _selectedIndex,
-        children: [
-          const PostScreen(),
-          const VoteScreen(),//
+        children: const [
+          PostScreen(),
+          VoteScreen(),
+          MyselfPage(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -117,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.post_add), label: '投稿'),
           BottomNavigationBarItem(icon: Icon(Icons.how_to_vote), label: '投票'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'マイページ'),
         ],
       ),
     );

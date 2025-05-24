@@ -1,133 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'post_detail.dart';
+import 'post_create.dart';
 
-class PostScreen extends StatefulWidget {
-  const PostScreen({super.key});
-
-  @override
-  State<PostScreen> createState() => _PostScreenState();
-}
-
-class _PostScreenState extends State<PostScreen> {
-  final _titleController = TextEditingController();
-  final _option1Controller = TextEditingController();
-  final _option2Controller = TextEditingController();
-  final _option3Controller = TextEditingController();
-
-  bool _showForm = false;
-
-  Future<void> _handlePost() async {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) return;
-
-    final post = {
-      'title': _titleController.text,
-      'options': {
-        _option1Controller.text: 0,
-        _option2Controller.text: 0,
-        _option3Controller.text: 0,
-      },
-      'createdBy': user.uid,
-      'createdAt': FieldValue.serverTimestamp(),
-    };
-
-    await FirebaseFirestore.instance.collection('posts').add(post);
-
-    _titleController.clear();
-    _option1Controller.clear();
-    _option2Controller.clear();
-    _option3Controller.clear();
-
-    setState(() {
-      _showForm = false;
-    });
-  }
+class PostScreen extends StatelessWidget {
+  const PostScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _showForm
-            ? Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(labelText: '題目'),
-                  ),
-                  TextField(
-                    controller: _option1Controller,
-                    decoration: const InputDecoration(labelText: '候補1'),
-                  ),
-                  TextField(
-                    controller: _option2Controller,
-                    decoration: const InputDecoration(labelText: '候補2'),
-                  ),
-                  TextField(
-                    controller: _option3Controller,
-                    decoration: const InputDecoration(labelText: '候補3'),
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: _handlePost,
-                    child: const Text('投稿'),
-                  ),
-                ],
-              ),
-            )
-            : ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _showForm = true;
-                });
-              },
-              child: const Text('投稿作成'),
-            ),
-        const SizedBox(height: 20),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream:
-                FirebaseFirestore.instance
-                    .collection('posts')
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
+    return Scaffold(
+      appBar: null,
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('posts')
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text('エラーが発生しました'));
+          }
 
-              final docs = snapshot.data!.docs;
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              if (docs.isEmpty) {
-                return const Center(child: Text('過去の投稿はありません'));
-              }
+          final posts = snapshot.data!.docs;
 
-              return ListView.builder(
-                itemCount: docs.length,
-                itemBuilder: (context, index) {
-                  final data = docs[index].data() as Map<String, dynamic>;
-                  final title = data['title'] ?? '無題';
+          return ListView.builder(
+            itemCount: posts.length,
+            itemBuilder: (context, index) {
+              final post = posts[index].data() as Map<String, dynamic>;
+              final postId = posts[index].id;
+              final options = Map<String, int>.from(post['options'] as Map);
+              final totalVotes = options.values.fold(0, (sum, votes) => sum + votes);
 
-                  return Card(
-                    child: ListTile(
-                      title: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+              return ListTile(
+                title: Text(post['title']),
+                subtitle: Text('総投票数: $totalVotes'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PostDetailScreen(
+                        postId: postId,
+                        title: post['title'],
+                        options: options,
                       ),
                     ),
                   );
                 },
               );
             },
-          ),
+          );
+        },
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PostCreateScreen(),
+            ),
+          );
+          if (result == true) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('投稿が完了しました')),
+            );
+          }
+        },
+        backgroundColor: Colors.blue,
+        label: const Text(
+          '新規作成',
+          style: TextStyle(color: Colors.white, fontSize: 20),
         ),
-      ],
+      ),
     );
   }
 }
