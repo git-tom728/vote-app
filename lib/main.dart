@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
 import 'login.dart';
-import 'register.dart';
 import 'post.dart';
 import 'vote.dart';
 import 'myself.dart';
@@ -64,33 +63,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  final List<Map<String, Map<String, bool>>> _posts = [];
-  final List<bool> _isVoted = [];
-
-  void _addPost(String title, String option1, String option2, String option3) {
-    setState(() {
-      _posts.add({
-        title: {option1: false, option2: false, option3: false},
-      });
-      _isVoted.add(false);
-    });
-  }
-
-  void _toggleVote(int postIndex, String optionKey) {
-    if (_isVoted[postIndex]) return;
-    setState(() {
-      String title = _posts[postIndex].keys.first;
-      _posts[postIndex][title]!.updateAll((key, value) => false);
-      _posts[postIndex][title]![optionKey] = true;
-    });
-  }
-
-  void _confirmVote(int postIndex) {
-    setState(() {
-      _isVoted[postIndex] = true;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

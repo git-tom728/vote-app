@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -52,6 +54,8 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
     final voteSnap = await voteRef.get();
 
     if (voteSnap.exists) {
+      // ignore: duplicate_ignore
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('すでに投票済みです。')),
       );

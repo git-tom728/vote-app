@@ -46,11 +46,14 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('投稿しました')),
       );
+      // ignore: use_build_context_synchronously
       Navigator.pop(context, true);
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('投稿に失敗しました')),
       );

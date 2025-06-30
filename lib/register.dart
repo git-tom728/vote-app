@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'main.dart'; // HomeScreen への遷移に使用
+import 'login.dart'; // LoginPage への遷移に使用
 import 'utils/user_id_generator.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -24,66 +24,159 @@ class _RegisterPageState extends State<RegisterPage> {
     _userId = UserIdGenerator.generate();
   }
 
-  String _getDefaultNickname(String email) {
-    return email.split('@')[0];
-  }
+  // String _getDefaultNickname(String email) {
+  //   return email.split('@')[0];
+  // }
 
   Future<void> _register() async {
     try {
-      // ユーザーIDの重複チェック
-      final userIdQuery = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userId', isEqualTo: _userId)
-          .get();
-
-      if (userIdQuery.docs.isNotEmpty) {
-        // 重複している場合は新しいIDを生成
-        _userId = UserIdGenerator.generate();
-        // 再帰的に登録処理を実行
-        await _register();
-        return;
-      }
+      debugPrint('=== アカウント作成開始 ===');
+      debugPrint('メールアドレス: ${_emailController.text.trim()}');
+      debugPrint('パスワード長: ${_passwordController.text.length}');
+      // debugPrint('ニックネーム: ${_nicknameController.text.trim()}');
+      debugPrint('ユーザーID: $_userId');
 
       // ユーザー認証の作成
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-
-      // ニックネームが未入力の場合はメールアドレスの@より前の部分を使用
-      final nickname = _nicknameController.text.trim().isEmpty
-          ? _getDefaultNickname(_emailController.text.trim())
-          : _nicknameController.text.trim();
+      debugPrint('Firebase Authでユーザー作成中...');
+      User? user;
+      debugPrint('Firebase Auth作成中try前');
+      try {
+        final credential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+            );
+        user = credential.user;
+        debugPrint('Firebase Auth作成成功: ${user!.uid}');
+      } catch (authError) {
+        // Firebase内部エラーの詳細ログ
+        if (authError.toString().contains('PigeonUserDetails')) {
+          debugPrint('=== Firebase内部型変換エラー（既知の問題） ===');
+          debugPrint('エラー詳細: $authError');
+          debugPrint('原因: Firebase Flutter SDK内部のPigeon型変換の不整合');
+          debugPrint('影響: なし（実際の処理は正常完了）');
+          debugPrint('対応: 不要（Firebase SDK側の問題のため対応不可）');
+          debugPrint('参考: https://github.com/firebase/flutterfire/issues');
+          debugPrint('=== エラーログ終了 ===');
+        } else {
+          debugPrint('Firebase Auth作成エラー: $authError');
+          debugPrint('エラーの型: ${authError.runtimeType}');
+        }
+        
+        // 実際のユーザー作成状況を確認
+        user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          debugPrint('✅ 結果確認: ユーザー作成は正常完了 (UID: ${user.uid})');
+        } else {
+          debugPrint('❌ 結果確認: ユーザー作成に失敗');
+          rethrow; // 実際に失敗した場合はエラーを再スロー
+        }
+      }
 
       // ユーザープロフィール情報をFirestoreに保存
+      debugPrint('Firestoreにユーザー情報保存中...');
+      
+      // userがnullでないことを確認
+      // ignore: unnecessary_null_comparison
+      if (user == null) {
+        throw Exception('ユーザー情報が取得できませんでした');
+      }
+      
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(credential.user!.uid)
+          .doc(user.uid)
           .set({
         'userId': _userId,
-        'nickname': nickname,
         'email': _emailController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
+      debugPrint('Firestore保存成功');
 
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      // メッセージを表示
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('アカウント作成が完了しました。')),
+      );
+
+      // 少し待ってから遷移
+      await Future.delayed(const Duration(seconds: 1));
+
+      // ここでサインアウト
+      debugPrint('サインアウト中...');
+      await FirebaseAuth.instance.signOut();
+      debugPrint('サインアウト完了');
+
+      // すべてのルートを消してLoginPageだけにする（カスタムアニメーション）
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(-1.0, 0.0); // 左から右
+            const end = Offset.zero;
+            const curve = Curves.ease;
+            final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+        ),
+        (Route<dynamic> route) => false,
       );
     } on FirebaseAuthException catch (e) {
+      debugPrint('=== Firebase Auth エラー ===');
+      debugPrint('エラーコード: ${e.code}');
+      debugPrint('エラーメッセージ: ${e.message}');
+      debugPrint('エラー詳細: $e');
+      
       setState(() {
-        _errorMessage = e.message ?? "登録に失敗しました";
+        _errorMessage = e.code;
       });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('認証エラー: ${e.code} - ${e.message ?? "詳細不明"}')),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('=== 予期しないエラー ===');
+      debugPrint('エラー: $e');
+      debugPrint('スタックトレース: $stackTrace');
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('登録に失敗しました: $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("アカウント作成")),
+      appBar: AppBar(
+        title: const Text("アカウント作成"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pushAndRemoveUntil(
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(-1.0, 0.0); // 左から右
+                  const end = Offset.zero;
+                  const curve = Curves.ease;
+                  final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
+              ),
+              (Route<dynamic> route) => false,
+            );
+          },
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(

@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ユーザープロファイルのルール
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null 
+        && request.auth.uid == userId;
+      allow update: if request.auth != null 
+        && request.auth.uid == userId
+        // 更新可能なフィールドを制限
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['username', 'lastUpdate'])
+        // タイムスタンプが正しい形式かチェック
+        && request.resource.data.lastUpdate is timestamp
+        // タイムスタンプが現在時刻に近いかチェック（5分以内）
+        && request.time.toMillis() - request.resource.data.lastUpdate.toMillis() < 300000;
+      allow delete: if false;  // ユーザープロファイルの削除は禁止
+    }
+
+    // 投稿のルール
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+      allow delete: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+    }
+
+    // 投票のルール
+    match /votes/{voteId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if false;  // 投票の更新は禁止
+      allow delete: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+    }
+  }
+}

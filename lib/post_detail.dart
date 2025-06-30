@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final String postId;
@@ -40,6 +40,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
           final post = snapshot.data!.data() as Map<String, dynamic>;
           final options = Map<String, dynamic>.from(post['options']);
+          // ignore: avoid_types_as_parameter_names
           final totalVotes = options.values.fold<int>(0, (sum, count) => sum + (count as int));
 
           return ListView(

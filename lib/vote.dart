@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_final_fields
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,7 +19,7 @@ class _VoteScreenState extends State<VoteScreen> {
   // 投票済みの投稿を管理する変数
   Set<String> _votedPosts = {};
   // 展開されている投稿を管理する変数
-  Set<String> _expandedPosts = {};
+  // Set<String> _expandedPosts = {};
 
   @override
   void initState() {
@@ -49,238 +51,238 @@ class _VoteScreenState extends State<VoteScreen> {
     });
   }
 
-  void _selectOption(String postId, String option) {
-    // 投票済みの場合は選択できないようにする
-    if (_votedPosts.contains(postId)) return;
+  // void _selectOption(String postId, String option) {
+  //   // 投票済みの場合は選択できないようにする
+  //   if (_votedPosts.contains(postId)) return;
     
-    setState(() {
-      _selectedOptions[postId] = option;
-    });
-  }
+  //   setState(() {
+  //     _selectedOptions[postId] = option;
+  //   });
+  // }
 
-  void _vote(String postId, String selectedOption) async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+  // void _vote(String postId, String selectedOption) async {
+  //   final user = _auth.currentUser;
+  //   if (user == null) return;
 
-    // 投票済みかチェック
-    final voteRef = FirebaseFirestore.instance
-        .collection('votes')
-        .doc('${postId}_${user.uid}');
+  //   // 投票済みかチェック
+  //   final voteRef = FirebaseFirestore.instance
+  //       .collection('votes')
+  //       .doc('${postId}_${user.uid}');
 
-    final voteSnap = await voteRef.get();
+  //   final voteSnap = await voteRef.get();
 
-    if (voteSnap.exists) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('すでに投票済みです。')));
-      return;
-    }
+  //   if (voteSnap.exists) {
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(const SnackBar(content: Text('すでに投票済みです。')));
+  //     return;
+  //   }
 
-    try {
-    // トランザクションで投票を処理
-    await FirebaseFirestore.instance.runTransaction((transaction) async {
-      // 投稿データを取得
-      final postRef = FirebaseFirestore.instance
-          .collection('posts')
-          .doc(postId);
-      final postDoc = await transaction.get(postRef);
+  //   try {
+  //   // トランザクションで投票を処理
+  //   await FirebaseFirestore.instance.runTransaction((transaction) async {
+  //     // 投稿データを取得
+  //     final postRef = FirebaseFirestore.instance
+  //         .collection('posts')
+  //         .doc(postId);
+  //     final postDoc = await transaction.get(postRef);
 
-        // 投稿が存在しない場合は処理を中断
-        if (!postDoc.exists) {
-          throw Exception('投稿が存在しません');
-        }
+  //       // 投稿が存在しない場合は処理を中断
+  //       if (!postDoc.exists) {
+  //         throw Exception('投稿が存在しません');
+  //       }
 
-      // 現在のoptionsを取得
-      final options = Map<String, dynamic>.from(postDoc.data()!['options']);
+  //     // 現在のoptionsを取得
+  //     final options = Map<String, dynamic>.from(postDoc.data()!['options']);
 
-      // 選択された選択肢の投票数を+1
-      options[selectedOption] = (options[selectedOption] ?? 0) + 1;
+  //     // 選択された選択肢の投票数を+1
+  //     options[selectedOption] = (options[selectedOption] ?? 0) + 1;
 
-      // 更新を実行
-      transaction.update(postRef, {'options': options});
+  //     // 更新を実行
+  //     transaction.update(postRef, {'options': options});
 
-      // 投票記録を保存
-      transaction.set(voteRef, {
-        'postId': postId,
-        'userId': user.uid,
-        'selectedOption': selectedOption,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    });
+  //     // 投票記録を保存
+  //     transaction.set(voteRef, {
+  //       'postId': postId,
+  //       'userId': user.uid,
+  //       'selectedOption': selectedOption,
+  //       'createdAt': FieldValue.serverTimestamp(),
+  //     });
+  //   });
 
-    // 投票済みの状態を更新
-    setState(() {
-      _votedPosts.add(postId);
-    });
+  //   // 投票済みの状態を更新
+  //   setState(() {
+  //     _votedPosts.add(postId);
+  //   });
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('投票しました！')));
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('投票に失敗しました。投稿が削除された可能性があります。')));
-    }
-  }
+  //   ScaffoldMessenger.of(
+  //     context,
+  //   ).showSnackBar(const SnackBar(content: Text('投票しました！')));
+  //   } catch (e) {
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(const SnackBar(content: Text('投票に失敗しました。投稿が削除された可能性があります。')));
+  //   }
+  // }
 
-  void _toggleExpanded(String postId) {
-    setState(() {
-      if (_expandedPosts.contains(postId)) {
-        _expandedPosts.remove(postId);
-      } else {
-        _expandedPosts.add(postId);
-      }
-    });
-  }
+  // void _toggleExpanded(String postId) {
+  //   setState(() {
+  //     if (_expandedPosts.contains(postId)) {
+  //       _expandedPosts.remove(postId);
+  //     } else {
+  //       _expandedPosts.add(postId);
+  //     }
+  //   });
+  // }
 
   // 投稿カードのコンテンツを構築
-  Widget _buildPostContent(
-    String postId,
-    String title,
-    Map<String, dynamic> options,
-    bool isVoted,
-    bool isExpanded,
-    String? createdByEmail,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // タイトル行（クリッカブル）
-        InkWell(
-          onTap: () => _toggleExpanded(postId),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Row(
-              children: [
-                Icon(
-                  isExpanded ? Icons.expand_less : Icons.expand_more,
-                  color: Colors.grey,
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (createdByEmail != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          '投稿者: $createdByEmail',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (isVoted)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      '投票済み',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        // 折りたたまれている場合は選択した選択肢のみ表示
-        if (!isExpanded && isVoted && _selectedOptions.containsKey(postId))
-          Padding(
-            padding: const EdgeInsets.only(left: 24, top: 4, bottom: 4),
-            child: Text(
-              '選択: ${_selectedOptions[postId]}',
-              style: const TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        // 展開時のコンテンツ
-        if (isExpanded) ...[
-          const SizedBox(height: 12),
-          ...options.keys.map(
-            (option) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  Expanded(
-              child: ElevatedButton(
-                onPressed: isVoted ? null : () => _selectOption(postId, option),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _selectedOptions[postId] == option
-                      ? Colors.blue
-                      : Colors.grey[200],
-                  foregroundColor: _selectedOptions[postId] == option
-                      ? Colors.white
-                      : Colors.black,
-                  disabledBackgroundColor: _selectedOptions[postId] == option
-                      ? Colors.blue
-                      : Colors.grey[200],
-                  disabledForegroundColor: _selectedOptions[postId] == option
-                      ? Colors.white
-                      : Colors.black54,
-                ),
-                child: Text(option),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${options[option] ?? 0}票',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_selectedOptions.containsKey(postId) && !isVoted) ...[
-            const SizedBox(height: 16),
-            Center(
-              child: ElevatedButton(
-                onPressed: () => _vote(postId, _selectedOptions[postId]!),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 12,
-                  ),
-                ),
-                child: const Text('投票する'),
-              ),
-            ),
-          ],
-        ],
-      ],
-    );
-  }
+  // Widget _buildPostContent(
+  //   String postId,
+  //   String title,
+  //   Map<String, dynamic> options,
+  //   bool isVoted,
+  //   bool isExpanded,
+  //   String? createdByEmail,
+  // ) {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       // タイトル行（クリッカブル）
+  //       InkWell(
+  //         onTap: () => _toggleExpanded(postId),
+  //         child: Padding(
+  //           padding: const EdgeInsets.symmetric(vertical: 8.0),
+  //           child: Row(
+  //             children: [
+  //               Icon(
+  //                 isExpanded ? Icons.expand_less : Icons.expand_more,
+  //                 color: Colors.grey,
+  //               ),
+  //               Expanded(
+  //                 child: Column(
+  //                   crossAxisAlignment: CrossAxisAlignment.start,
+  //                   children: [
+  //                     Text(
+  //                       title,
+  //                       style: const TextStyle(
+  //                         fontSize: 18,
+  //                         fontWeight: FontWeight.bold,
+  //                       ),
+  //                     ),
+  //                     if (createdByEmail != null) ...[
+  //                       const SizedBox(height: 4),
+  //                       Text(
+  //                         '投稿者: $createdByEmail',
+  //                         style: const TextStyle(
+  //                           fontSize: 12,
+  //                           color: Colors.grey,
+  //                         ),
+  //                       ),
+  //                     ],
+  //                   ],
+  //                 ),
+  //               ),
+  //               if (isVoted)
+  //                 Container(
+  //                   padding: const EdgeInsets.symmetric(
+  //                     horizontal: 8,
+  //                     vertical: 4,
+  //                   ),
+  //                   decoration: BoxDecoration(
+  //                     color: Colors.green,
+  //                     borderRadius: BorderRadius.circular(12),
+  //                   ),
+  //                   child: const Text(
+  //                     '投票済み',
+  //                     style: TextStyle(
+  //                       color: Colors.white,
+  //                       fontSize: 12,
+  //                     ),
+  //                   ),
+  //                 ),
+  //             ],
+  //           ),
+  //         ),
+  //       ),
+  //       // 折りたたまれている場合は選択した選択肢のみ表示
+  //       if (!isExpanded && isVoted && _selectedOptions.containsKey(postId))
+  //         Padding(
+  //           padding: const EdgeInsets.only(left: 24, top: 4, bottom: 4),
+  //           child: Text(
+  //             '選択: ${_selectedOptions[postId]}',
+  //             style: const TextStyle(
+  //               color: Colors.blue,
+  //               fontWeight: FontWeight.w500,
+  //             ),
+  //           ),
+  //         ),
+  //       // 展開時のコンテンツ
+  //       if (isExpanded) ...[
+  //         const SizedBox(height: 12),
+  //         ...options.keys.map(
+  //           (option) => Padding(
+  //             padding: const EdgeInsets.symmetric(vertical: 4),
+  //             child: Row(
+  //               children: [
+  //                 Expanded(
+  //             child: ElevatedButton(
+  //               onPressed: isVoted ? null : () => _selectOption(postId, option),
+  //               style: ElevatedButton.styleFrom(
+  //                 backgroundColor: _selectedOptions[postId] == option
+  //                     ? Colors.blue
+  //                     : Colors.grey[200],
+  //                 foregroundColor: _selectedOptions[postId] == option
+  //                     ? Colors.white
+  //                     : Colors.black,
+  //                 disabledBackgroundColor: _selectedOptions[postId] == option
+  //                     ? Colors.blue
+  //                     : Colors.grey[200],
+  //                 disabledForegroundColor: _selectedOptions[postId] == option
+  //                     ? Colors.white
+  //                     : Colors.black54,
+  //               ),
+  //               child: Text(option),
+  //                   ),
+  //                 ),
+  //                 const SizedBox(width: 8),
+  //                 Container(
+  //                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  //                   decoration: BoxDecoration(
+  //                     color: Colors.grey[200],
+  //                     borderRadius: BorderRadius.circular(12),
+  //                   ),
+  //                   child: Text(
+  //                     '${options[option] ?? 0}票',
+  //                     style: const TextStyle(
+  //                       fontSize: 12,
+  //                       fontWeight: FontWeight.bold,
+  //                     ),
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+  //         if (_selectedOptions.containsKey(postId) && !isVoted) ...[
+  //           const SizedBox(height: 16),
+  //           Center(
+  //             child: ElevatedButton(
+  //               onPressed: () => _vote(postId, _selectedOptions[postId]!),
+  //               style: ElevatedButton.styleFrom(
+  //                 backgroundColor: Colors.green,
+  //                 padding: const EdgeInsets.symmetric(
+  //                   horizontal: 32,
+  //                   vertical: 12,
+  //                 ),
+  //               ),
+  //               child: const Text('投票する'),
+  //             ),
+  //           ),
+  //         ],
+  //       ],
+  //     ],
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -288,9 +290,16 @@ class _VoteScreenState extends State<VoteScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
                 .collection('posts')
+                .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
                 .orderBy('createdAt', descending: true)
                 .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('エラーが発生しました: ${snapshot.error}'),
+            );
+          }
+
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -315,7 +324,7 @@ class _VoteScreenState extends State<VoteScreen> {
               final title = post['title'] ?? 'タイトルなし';
               final options = Map<String, dynamic>.from(post['options']);
               final isVoted = _votedPosts.contains(postId);
-              final isExpanded = _expandedPosts.contains(postId);
+              // final isExpanded = _expandedPosts.contains(postId);
               final createdByEmail = post['createdByEmail'] as String?;
 
               return Card(

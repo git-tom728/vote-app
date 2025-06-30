@@ -13,26 +13,30 @@ class PostScreen extends StatelessWidget {
       appBar: null,
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('posts')
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
+                    .collection('posts')
+                    .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+            builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text('エラーが発生しました'));
+            return Center(
+              child: Text('エラーが発生しました: ${snapshot.error}'),
+            );
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+                return const Center(child: CircularProgressIndicator());
+              }
 
           final posts = snapshot.data!.docs;
 
-          return ListView.builder(
+              return ListView.builder(
             itemCount: posts.length,
-            itemBuilder: (context, index) {
+                itemBuilder: (context, index) {
               final post = posts[index].data() as Map<String, dynamic>;
               final postId = posts[index].id;
               final options = Map<String, int>.from(post['options'] as Map);
+              // ignore: avoid_types_as_parameter_names
               final totalVotes = options.values.fold(0, (sum, votes) => sum + votes);
 
               return ListTile(
@@ -54,7 +58,7 @@ class PostScreen extends StatelessWidget {
             },
           );
         },
-      ),
+        ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -65,6 +69,7 @@ class PostScreen extends StatelessWidget {
             ),
           );
           if (result == true) {
+            // ignore: use_build_context_synchronously
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('投稿が完了しました')),
             );
