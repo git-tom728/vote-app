@@ -406,6 +406,69 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
                                 child: const Text('ログアウト'),
                               ),
                               ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('アカウント削除'),
+                                      content: const Text('アカウントを削除すると、すべてのデータが完全に削除され、復元できません。本当に削除しますか？'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: const Text('キャンセル'),
+                                        ),
+                                        TextButton(
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.red,
+                                          ),
+                                          onPressed: () async {
+                                            try {
+                                              // Firebase Authenticationからアカウント削除
+                                              User? user = _auth.currentUser;
+                                              if (user != null) {
+                                                await user.delete();
+                                                
+                                                if (mounted) {
+                                                  // ignore: use_build_context_synchronously
+                                                  Navigator.pop(context);
+                                                  // ignore: use_build_context_synchronously
+                                                  Navigator.pushReplacementNamed(context, '/login');
+                                                  // ignore: use_build_context_synchronously
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text('アカウントが削除されました'),
+                                                      backgroundColor: Colors.green,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            } catch (e) {
+                                              if (mounted) {
+                                                // ignore: use_build_context_synchronously
+                                                Navigator.pop(context);
+                                                // ignore: use_build_context_synchronously
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text('アカウント削除に失敗しました: ${e.toString()}'),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          },
+                                          child: const Text('削除'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                child: const Text('アカウント削除'),
+                              ),
+                              ElevatedButton(
                                 onPressed: () {
                                   showDialog(
                                     context: context,
@@ -478,6 +541,47 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
                                   );
                                 },
                                 child: const Text('お問い合わせ'),
+                              ),
+                              const SizedBox(height: 10),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey[600],
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('利用規約'),
+                                      content: const SingleChildScrollView(
+                                        child: Text(
+                                          '【Vote アプリ利用規約】\n\n'
+                                          '第1条（適用）\n'
+                                          '本利用規約は、Vote アプリの利用に関する条件を定めるものです。\n\n'
+                                          '第2条（禁止事項）\n'
+                                          '・法令に違反する行為\n'
+                                          '・他者を誹謗中傷、脅迫する行為\n'
+                                          '・わいせつ、暴力的、差別的なコンテンツの投稿\n'
+                                          '・スパム行為や営利目的の宣伝\n'
+                                          '・虚偽情報の拡散\n'
+                                          '・知的財産権を侵害する行為\n\n'
+                                          '第3条（コンテンツ管理）\n'
+                                          '不適切なコンテンツは削除され、違反ユーザーはアカウント停止となる場合があります。\n\n'
+                                          '詳細な利用規約は以下をご確認ください：\n'
+                                          'https://git-tom728.github.io/vote-app/terms_of_service.html',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: const Text('閉じる'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                child: const Text('利用規約'),
                               ),
                             ],
                           ),
