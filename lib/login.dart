@@ -18,8 +18,6 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> loginUser() async {
     try {
-      debugPrint('=== ログイン開始 ===');
-      debugPrint('メールアドレス: ${emailController.text.trim()}');
       
       User? user;
       try {
@@ -28,13 +26,10 @@ class _LoginPageState extends State<LoginPage> {
           password: passwordController.text.trim(),
         );
         user = credential.user;
-        debugPrint('ログイン成功: ${user!.uid}');
       } catch (authError) {
-        debugPrint('Firebase Authログインエラー: $authError');
         // 型エラーの場合は、ユーザーが実際にログインされているかチェック
         user = _auth.currentUser;
         if (user != null) {
-          debugPrint('ユーザーはログイン済み: ${user.uid}');
         } else {
           rethrow; // ユーザーがログインされていない場合はエラーを再スロー
         }
@@ -55,16 +50,11 @@ class _LoginPageState extends State<LoginPage> {
       );
       
     } on FirebaseAuthException catch (e) {
-      debugPrint('=== Firebase Auth エラー ===');
-      debugPrint('エラーコード: ${e.code}');
-      debugPrint('エラーメッセージ: ${e.message}');
       
       setState(() {
         errorMessage = 'ログインに失敗しました: ${e.code}';
       });
     } catch (e) {
-      debugPrint('=== 予期しないエラー ===');
-      debugPrint('エラー: $e');
       
       setState(() {
         errorMessage = 'ログインに失敗しました: $e';

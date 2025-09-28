@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/user_service.dart';
-import 'services/support_service.dart';
+import 'login.dart';
 
 class MyselfPage extends StatefulWidget {
   const MyselfPage({super.key});
@@ -13,7 +14,6 @@ class MyselfPage extends StatefulWidget {
 class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateMixin {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final UserService _userService = UserService();
-  final SupportService _supportService = SupportService();
   int postCount = 0;
   int voteCount = 0;
   Map<String, dynamic>? userProfile;
@@ -23,7 +23,6 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
   String? _errorMessage;
   late AnimationController _animationController;
   late Animation<double> _animation;
-  String _inquiryContent = '';
 
   @override
   void initState() {
@@ -193,14 +192,273 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
     await _loadUserData();
   }
 
+  // アカウント削除ダイアログを表示
+  void _showAccountDeletionDialog() {
+    final TextEditingController passwordController = TextEditingController();
+    bool isPasswordVisible = false;
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red.shade600),
+              const SizedBox(width: 8),
+              const Text('アカウント削除'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'アカウントを削除すると、すべてのデータが完全に削除され、復元できません。',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text('確認のため、パスワードを入力してください：'),
+              const SizedBox(height: 8),
+              Text(
+                'メールアドレス: ${_auth.currentUser?.email ?? ''}',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: passwordController,
+                obscureText: !isPasswordVisible,
+                decoration: InputDecoration(
+                  labelText: 'パスワード',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        isPasswordVisible = !isPasswordVisible;
+                      });
+                    },
+                  ),
+                ),
+                enabled: !isLoading,
+              ),
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.only(top: 16),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 8),
+                        Text('削除処理中...'),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () {
+                passwordController.dispose();
+                Navigator.pop(context);
+              },
+              child: Text('キャンセル', style: TextStyle(color: Colors.grey.shade600)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: isLoading ? null : () async {
+                final password = passwordController.text.trim();
+                if (password.isEmpty) {
+                  _showError('パスワードを入力してください');
+                  return;
+                }
+
+                setState(() {
+                  isLoading = true;
+                });
+
+                try {
+                  final user = _auth.currentUser;
+                  if (user != null && user.email != null) {
+                    // パスワードで再認証
+                    final credential = EmailAuthProvider.credential(
+                      email: user.email!,
+                      password: password,
+                    );
+                    
+                    await user.reauthenticateWithCredential(credential);
+                    
+                    // 最終確認ダイアログを表示
+                    Navigator.pop(context);
+                    passwordController.dispose();
+                    _showFinalConfirmationDialog();
+                  }
+                } catch (e) {
+                  setState(() {
+                    isLoading = false;
+                  });
+                  
+                  String errorMessage = 'パスワードが間違っています';
+                  if (e.toString().contains('wrong-password')) {
+                    errorMessage = 'パスワードが間違っています';
+                  } else if (e.toString().contains('too-many-requests')) {
+                    errorMessage = 'ログイン試行回数が多すぎます。しばらく待ってから再試行してください';
+                  }
+                  
+                  _showError(errorMessage);
+                }
+              },
+              child: const Text('確認', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // AuthState変化を定期的にチェック
+  void _startAuthStatePolling() {
+    int attempts = 0;
+    const maxAttempts = 10; // 最大10回（10秒間）チェック
+    
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      attempts++;
+      
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      final currentUser = _auth.currentUser;
+      
+      if (currentUser == null) {
+        timer.cancel();
+        
+        // 手動で画面を更新してAuthState変化を促す
+        if (mounted) {
+          setState(() {}); // 画面更新
+          
+          // 少し待ってから手動遷移
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+                (route) => false,
+              );
+            }
+          });
+        }
+        return;
+      }
+      
+      if (attempts >= maxAttempts) {
+        timer.cancel();
+        
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+            (route) => false,
+          );
+        }
+      }
+    });
+  }
+
+  // 最終確認ダイアログを表示
+  void _showFinalConfirmationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber, color: Colors.orange.shade600),
+            const SizedBox(width: 8),
+            const Text('最終確認'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '本当にアカウントを削除しますか？',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'この操作は取り消すことができません。\nすべてのデータが完全に削除されます。',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.red),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('キャンセル', style: TextStyle(color: Colors.grey.shade600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () async {
+              try {
+                final user = _auth.currentUser;
+                
+                if (user != null) {
+                  await user.delete();
+                  
+                  // 削除後のユーザー状態を確認
+                  
+                  if (mounted) {
+                    Navigator.pop(context);
+                    _showSuccess('アカウントが削除されました');
+                    
+                    // 定期的にAuthState変化をチェック
+                    _startAuthStatePolling();
+                  } else {
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.pop(context);
+                  _showError('アカウント削除に失敗しました: ${e.toString()}');
+                }
+              }
+            },
+            child: const Text('アカウントを削除する', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final User? user = _auth.currentUser;
     
     return Scaffold(
-      // appBar: AppBar(
-      //   title: const Text('マイページ'),
-      // ),
       body: user == null
           ? const Center(child: Text('ログインが必要です'))
           : Stack(
@@ -253,337 +511,215 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
                               );
                             },
                             child: Card(
-                              child: Stack(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              'アカウント情報',
-                                              style: Theme.of(context).textTheme.titleLarge,
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(Icons.refresh),
-                                              onPressed: _isLoading ? null : _refreshCard,
-                                              tooltip: '再読み込み',
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        if (userProfile != null) ...[
+                              elevation: 8,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.blue.shade50,
+                                      Colors.white,
+                                      Colors.blue.shade100,
+                                    ],
+                                  ),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(20.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
                                           Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              const Text('ユーザー名: '),
-                                              if (!_isEditing) ...[
-                                                Text(userProfile!['username']),
-                                                const SizedBox(width: 4),
-                                                GestureDetector(
-                                                  onTap: () {
-                                                    setState(() {
-                                                      _isEditing = true;
-                                                      _errorMessage = null;
-                                                    });
-                                                  },
-                                                  child: const Icon(
-                                                    Icons.edit,
-                                                    size: 16,
-                                                    color: Colors.grey,
-                                                  ),
-                                                ),
-                                              ] else ...[
-                                                Expanded(
-                                                  child: TextField(
-                                                    controller: _usernameController,
-                                                    decoration: const InputDecoration(
-                                                      isDense: true,
-                                                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                                      border: OutlineInputBorder(),
-                                                      hintText: '3〜20文字の英数字とアンダースコア',
-                                                      helperText: '変更を保存するにはチェックマークをタップしてください',
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.all(12),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.blue.shade100,
+                                                      borderRadius: BorderRadius.circular(16),
+                                                    ),
+                                                    child: Icon(
+                                                      Icons.account_circle,
+                                                      color: Colors.blue.shade700,
+                                                      size: 28,
                                                     ),
                                                   ),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                GestureDetector(
-                                                  onTap: _updateUsername,
-                                                  child: const Icon(
-                                                    Icons.check,
-                                                    size: 16,
-                                                    color: Colors.green,
+                                                  const SizedBox(width: 16),
+                                                  Text(
+                                                    'アカウント情報',
+                                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.grey.shade800,
+                                                      fontSize: 22,
+                                                    ),
                                                   ),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                GestureDetector(
-                                                  onTap: () {
-                                                    setState(() {
-                                                      _usernameController.text = userProfile!['username'];
-                                                      _isEditing = false;
-                                                      _errorMessage = null;
-                                                    });
-                                                  },
-                                                  child: const Icon(
-                                                    Icons.close,
-                                                    size: 16,
-                                                    color: Colors.red,
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                        ],
-                                        Text('メールアドレス: ${user.email}'),
-                                        const SizedBox(height: 8),
-                                        Text('投稿数: $postCount'),
-                                        const SizedBox(height: 8),
-                                        Text('投票数: $voteCount'),
-                                      ],
-                                    ),
-                                  ),
-                                  if (_isLoading)
-                                    Positioned.fill(
-                                      child: Container(
-                                        // ignore: deprecated_member_use
-                                        color: Colors.black.withOpacity(0.3),
-                                        child: const Center(
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              CircularProgressIndicator(),
-                                              SizedBox(height: 16),
-                                              Text(
-                                                '処理中...',
-                                                style: TextStyle(
+                                                ],
+                                              ),
+                                              Container(
+                                                decoration: BoxDecoration(
                                                   color: Colors.white,
-                                                  fontSize: 16,
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.grey.shade200,
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 4),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: IconButton(
+                                                  icon: Icon(
+                                                    Icons.refresh_rounded,
+                                                    color: Colors.blue.shade600,
+                                                    size: 24,
+                                                  ),
+                                                  onPressed: _isLoading ? null : _refreshCard,
+                                                  tooltip: '再読み込み',
                                                 ),
                                               ),
                                             ],
                                           ),
-                                        ),
+                                          const SizedBox(height: 16),
+                                          if (userProfile != null) ...[
+                                            Row(
+                                              children: [
+                                                const Text('ユーザー名: '),
+                                                if (!_isEditing) ...[
+                                                  Text(userProfile!['username'] ?? 'ユーザー名未設定'),
+                                                  const SizedBox(width: 4),
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      setState(() {
+                                                        _isEditing = true;
+                                                        _errorMessage = null;
+                                                      });
+                                                    },
+                                                    child: const Icon(
+                                                      Icons.edit,
+                                                      size: 16,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                ] else ...[
+                                                  Expanded(
+                                                    child: TextField(
+                                                      controller: _usernameController,
+                                                      decoration: const InputDecoration(
+                                                        isDense: true,
+                                                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                                        border: OutlineInputBorder(),
+                                                        hintText: '3〜20文字の英数字とアンダースコア',
+                                                        helperText: '変更を保存するにはチェックマークをタップしてください',
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  GestureDetector(
+                                                    onTap: _updateUsername,
+                                                    child: const Icon(
+                                                      Icons.check,
+                                                      size: 16,
+                                                      color: Colors.green,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      setState(() {
+                                                        _usernameController.text = userProfile!['username'] ?? '';
+                                                        _isEditing = false;
+                                                        _errorMessage = null;
+                                                      });
+                                                    },
+                                                    child: const Icon(
+                                                      Icons.close,
+                                                      size: 16,
+                                                      color: Colors.red,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                          ],
+                                          Text('メールアドレス: ${user.email}'),
+                                          const SizedBox(height: 8),
+                                          Text('投稿数: $postCount'),
+                                          const SizedBox(height: 8),
+                                          Text('投票数: $voteCount'),
+                                        ],
                                       ),
                                     ),
-                                ],
+                                    if (_isLoading)
+                                      Positioned.fill(
+                                        child: Container(
+                                          color: Colors.black.withValues(alpha: 0.3),
+                                          child: const Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                CircularProgressIndicator(),
+                                                SizedBox(height: 16),
+                                                Text(
+                                                  '処理中...',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              ElevatedButton(
-                                onPressed: () async {
-                                  final confirmed = await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('ログアウト'),
-                                      content: const Text('ログアウトしますか？'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context, false),
-                                          child: const Text('キャンセル'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context, true),
-                                          child: const Text('ログアウト'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-
-                                  if (confirmed == true) {
-                                    await FirebaseAuth.instance.signOut();
-                                    if (mounted) {
-                                      // ignore: use_build_context_synchronously
-                                      Navigator.pushReplacementNamed(context, '/login');
-                                    }
-                                  }
-                                },
-                                child: const Text('ログアウト'),
-                              ),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  foregroundColor: Colors.white,
+                          Container(
+                            margin: const EdgeInsets.only(top: 20),
+                            width: double.infinity,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                gradient: LinearGradient(
+                                  colors: [Colors.red.shade400, Colors.red.shade600],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
                                 ),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('アカウント削除'),
-                                      content: const Text('アカウントを削除すると、すべてのデータが完全に削除され、復元できません。本当に削除しますか？'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: const Text('キャンセル'),
-                                        ),
-                                        TextButton(
-                                          style: TextButton.styleFrom(
-                                            foregroundColor: Colors.red,
-                                          ),
-                                          onPressed: () async {
-                                            try {
-                                              // Firebase Authenticationからアカウント削除
-                                              User? user = _auth.currentUser;
-                                              if (user != null) {
-                                                await user.delete();
-                                                
-                                                if (mounted) {
-                                                  // ignore: use_build_context_synchronously
-                                                  Navigator.pop(context);
-                                                  // ignore: use_build_context_synchronously
-                                                  Navigator.pushReplacementNamed(context, '/login');
-                                                  // ignore: use_build_context_synchronously
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text('アカウントが削除されました'),
-                                                      backgroundColor: Colors.green,
-                                                    ),
-                                                  );
-                                                }
-                                              }
-                                            } catch (e) {
-                                              if (mounted) {
-                                                // ignore: use_build_context_synchronously
-                                                Navigator.pop(context);
-                                                // ignore: use_build_context_synchronously
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('アカウント削除に失敗しました: ${e.toString()}'),
-                                                    backgroundColor: Colors.red,
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          },
-                                          child: const Text('削除'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                                child: const Text('アカウント削除'),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.shade200,
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('お問い合わせ'),
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Text('お問い合わせ内容を入力してください'),
-                                          const SizedBox(height: 16),
-                                          TextField(
-                                            maxLines: 5,
-                                            decoration: const InputDecoration(
-                                              hintText: 'お問い合わせ内容',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                            onChanged: (value) {
-                                              _inquiryContent = value;
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: const Text('キャンセル'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () async {
-                                            if (_inquiryContent.isEmpty) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text('お問い合わせ内容を入力してください'),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                              return;
-                                            }
-
-                                            try {
-                                              await _supportService.submitInquiry(_inquiryContent);
-                                              if (mounted) {
-                                                // ignore: use_build_context_synchronously
-                                                // ignore: use_build_context_synchronously
-                                                Navigator.pop(context);
-                                                // ignore: use_build_context_synchronously
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text('お問い合わせを受け付けました'),
-                                                    backgroundColor: Colors.green,
-                                                  ),
-                                                );
-                                              }
-                                            } catch (e) {
-                                              if (mounted) {
-                                                // ignore: use_build_context_synchronously
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text('お問い合わせの送信に失敗しました'),
-                                                    backgroundColor: Colors.red,
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          },
-                                          child: const Text('送信'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                                child: const Text('お問い合わせ'),
-                              ),
-                              const SizedBox(height: 10),
-                              ElevatedButton(
+                              child: ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.grey[600],
+                                  backgroundColor: Colors.transparent,
                                   foregroundColor: Colors.white,
+                                  shadowColor: Colors.transparent,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  minimumSize: const Size(double.infinity, 50),
                                 ),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('利用規約'),
-                                      content: const SingleChildScrollView(
-                                        child: Text(
-                                          '【Vote アプリ利用規約】\n\n'
-                                          '第1条（適用）\n'
-                                          '本利用規約は、Vote アプリの利用に関する条件を定めるものです。\n\n'
-                                          '第2条（禁止事項）\n'
-                                          '・法令に違反する行為\n'
-                                          '・他者を誹謗中傷、脅迫する行為\n'
-                                          '・わいせつ、暴力的、差別的なコンテンツの投稿\n'
-                                          '・スパム行為や営利目的の宣伝\n'
-                                          '・虚偽情報の拡散\n'
-                                          '・知的財産権を侵害する行為\n\n'
-                                          '第3条（コンテンツ管理）\n'
-                                          '不適切なコンテンツは削除され、違反ユーザーはアカウント停止となる場合があります。\n\n'
-                                          '詳細な利用規約は以下をご確認ください：\n'
-                                          'https://git-tom728.github.io/vote-app/terms_of_service.html',
-                                          style: TextStyle(fontSize: 12),
-                                        ),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: const Text('閉じる'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                                child: const Text('利用規約'),
+                                icon: const Icon(Icons.delete_forever_rounded, size: 20),
+                                label: const Text('アカウント削除', style: TextStyle(fontWeight: FontWeight.w600)),
+                                onPressed: () => _showAccountDeletionDialog(),
                               ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
@@ -594,4 +730,4 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
             ),
     );
   }
-} 
+}

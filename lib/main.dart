@@ -36,6 +36,7 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        
         // ローディング中
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(

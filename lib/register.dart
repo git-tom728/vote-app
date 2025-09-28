@@ -30,16 +30,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _register() async {
     try {
-      debugPrint('=== アカウント作成開始 ===');
-      debugPrint('メールアドレス: ${_emailController.text.trim()}');
-      debugPrint('パスワード長: ${_passwordController.text.length}');
-      // debugPrint('ニックネーム: ${_nicknameController.text.trim()}');
-      debugPrint('ユーザーID: $_userId');
 
       // ユーザー認証の作成
-      debugPrint('Firebase Authでユーザー作成中...');
       User? user;
-      debugPrint('Firebase Auth作成中try前');
       try {
         final credential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(
@@ -47,34 +40,21 @@ class _RegisterPageState extends State<RegisterPage> {
               password: _passwordController.text,
             );
         user = credential.user;
-        debugPrint('Firebase Auth作成成功: ${user!.uid}');
       } catch (authError) {
         // Firebase内部エラーの詳細ログ
         if (authError.toString().contains('PigeonUserDetails')) {
-          debugPrint('=== Firebase内部型変換エラー（既知の問題） ===');
-          debugPrint('エラー詳細: $authError');
-          debugPrint('原因: Firebase Flutter SDK内部のPigeon型変換の不整合');
-          debugPrint('影響: なし（実際の処理は正常完了）');
-          debugPrint('対応: 不要（Firebase SDK側の問題のため対応不可）');
-          debugPrint('参考: https://github.com/firebase/flutterfire/issues');
-          debugPrint('=== エラーログ終了 ===');
         } else {
-          debugPrint('Firebase Auth作成エラー: $authError');
-          debugPrint('エラーの型: ${authError.runtimeType}');
         }
         
         // 実際のユーザー作成状況を確認
         user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          debugPrint('✅ 結果確認: ユーザー作成は正常完了 (UID: ${user.uid})');
         } else {
-          debugPrint('❌ 結果確認: ユーザー作成に失敗');
           rethrow; // 実際に失敗した場合はエラーを再スロー
         }
       }
 
       // ユーザープロフィール情報をFirestoreに保存
-      debugPrint('Firestoreにユーザー情報保存中...');
       
       // userがnullでないことを確認
       // ignore: unnecessary_null_comparison
@@ -90,7 +70,6 @@ class _RegisterPageState extends State<RegisterPage> {
         'email': _emailController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
-      debugPrint('Firestore保存成功');
 
       if (!mounted) return;
 
@@ -103,9 +82,7 @@ class _RegisterPageState extends State<RegisterPage> {
       await Future.delayed(const Duration(seconds: 1));
 
       // ここでサインアウト
-      debugPrint('サインアウト中...');
       await FirebaseAuth.instance.signOut();
-      debugPrint('サインアウト完了');
 
       // すべてのルートを消してLoginPageだけにする（カスタムアニメーション）
       if (!mounted) return;
@@ -126,10 +103,6 @@ class _RegisterPageState extends State<RegisterPage> {
         (Route<dynamic> route) => false,
       );
     } on FirebaseAuthException catch (e) {
-      debugPrint('=== Firebase Auth エラー ===');
-      debugPrint('エラーコード: ${e.code}');
-      debugPrint('エラーメッセージ: ${e.message}');
-      debugPrint('エラー詳細: $e');
       
       setState(() {
         _errorMessage = e.code;
@@ -138,10 +111,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('認証エラー: ${e.code} - ${e.message ?? "詳細不明"}')),
       );
-    } catch (e, stackTrace) {
-      debugPrint('=== 予期しないエラー ===');
-      debugPrint('エラー: $e');
-      debugPrint('スタックトレース: $stackTrace');
+    } catch (e) {
       
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

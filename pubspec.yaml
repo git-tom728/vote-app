@@ -36,12 +36,12 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.2
   # 最新のFirebaseプラグインセット（Xcode 16対応）
-  firebase_core: ^3.15.1
-  firebase_auth: ^5.6.2
-  cloud_firestore: ^5.6.11
-  firebase_analytics: ^11.5.2
-  firebase_crashlytics: ^4.3.9
-  firebase_performance: ^0.10.1
+  firebase_core: ^3.15.2
+  firebase_auth: ^5.7.0
+  cloud_firestore: ^5.6.12
+  firebase_analytics: ^11.6.0
+  firebase_crashlytics: ^4.3.10
+  firebase_performance: ^0.10.1+10
   crypto: ^3.0.3
 
   # The following adds the Cupertino Icons font to your application.
