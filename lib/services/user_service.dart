@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vote/services/log_service.dart';
+import 'package:vote/config/debug_config.dart';
 
 class UserService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -61,18 +62,32 @@ class UserService {
   // ユーザープロファイルの取得
   Future<Map<String, dynamic>?> getUserProfile() async {
     try {
+      DebugConfig.debugLog('getUserProfile開始');
       _logService.startTrace('get_user_profile');
       final user = _auth.currentUser;
       if (user == null) {
+        DebugConfig.debugWarning('ユーザーがログインしていません');
         _logService.logWarning('ユーザーがログインしていません');
         return null;
       }
 
+      DebugConfig.debugLog('Firestoreからプロファイル取得開始', data: {'uid': user.uid});
       final doc = await _firestore.collection('users').doc(user.uid).get();
+      
+      if (!doc.exists) {
+        DebugConfig.debugWarning('プロファイルが存在しません', data: {'uid': user.uid});
+      } else {
+        DebugConfig.debugSuccess('プロファイル取得成功', data: {
+          'uid': user.uid,
+          'username': doc.data()?['username'],
+        });
+      }
+      
       _logService.logInfo('ユーザープロフィール取得成功', data: {'uid': user.uid});
       _logService.stopTrace('get_user_profile');
       return doc.data();
     } catch (e, stackTrace) {
+      DebugConfig.debugError('getUserProfileエラー', error: e, stackTrace: stackTrace);
       _logService.logError(
         e,
         stackTrace,

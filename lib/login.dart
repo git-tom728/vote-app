@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'register.dart';
 import 'main.dart';
+import 'config/debug_config.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,6 +19,9 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> loginUser() async {
     try {
+      DebugConfig.debugLog('ログイン開始', data: {
+        'email': emailController.text.trim(),
+      });
       
       User? user;
       try {
@@ -26,17 +30,31 @@ class _LoginPageState extends State<LoginPage> {
           password: passwordController.text.trim(),
         );
         user = credential.user;
+        DebugConfig.debugSuccess('Firebase認証成功', data: {
+          'uid': user?.uid,
+          'email': user?.email,
+        });
       } catch (authError) {
+        DebugConfig.debugWarning('Firebase認証エラー、currentUserをチェック', data: {
+          'error': authError.toString(),
+        });
         // 型エラーの場合は、ユーザーが実際にログインされているかチェック
         user = _auth.currentUser;
         if (user != null) {
+          DebugConfig.debugSuccess('currentUserでログイン確認', data: {
+            'uid': user.uid,
+            'email': user.email,
+          });
         } else {
+          DebugConfig.debugError('ログイン失敗: currentUserもnull');
           rethrow; // ユーザーがログインされていない場合はエラーを再スロー
         }
       }
 
       // ログイン成功後の処理
       if (!mounted) return;
+      
+      DebugConfig.debugLog('画面遷移開始');
       
       // メインページに遷移
       ScaffoldMessenger.of(context).showSnackBar(
@@ -49,12 +67,16 @@ class _LoginPageState extends State<LoginPage> {
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
       
+      DebugConfig.debugSuccess('ログイン完了');
+      
     } on FirebaseAuthException catch (e) {
+      DebugConfig.debugError('FirebaseAuthException', error: e, stackTrace: StackTrace.current);
       
       setState(() {
         errorMessage = 'ログインに失敗しました: ${e.code}';
       });
     } catch (e) {
+      DebugConfig.debugError('予期しないエラー', error: e, stackTrace: StackTrace.current);
       
       setState(() {
         errorMessage = 'ログインに失敗しました: $e';
