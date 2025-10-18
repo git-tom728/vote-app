@@ -290,7 +290,6 @@ class _VoteScreenState extends State<VoteScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
                 .collection('posts')
-                .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
                 .orderBy('createdAt', descending: true)
                 .snapshots(),
         builder: (context, snapshot) {
@@ -304,10 +303,17 @@ class _VoteScreenState extends State<VoteScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final posts = snapshot.data!.docs;
+          final allPosts = snapshot.data!.docs;
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+          
+          // 自分以外のユーザーの投稿のみをフィルタリング
+          final posts = allPosts.where((doc) {
+            final post = doc.data() as Map<String, dynamic>;
+            return post['userId'] != currentUserId;
+          }).toList();
 
           if (posts.isEmpty) {
-            return const Center(child: Text('投稿がありません'));
+            return const Center(child: Text('投票できる投稿がありません'));
           }
 
           return ListView.builder(
