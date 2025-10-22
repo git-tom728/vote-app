@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'services/report_service.dart';
+import 'services/block_service.dart';
 
 class VoteDetailScreen extends StatefulWidget {
   final String postId;
@@ -11,6 +13,7 @@ class VoteDetailScreen extends StatefulWidget {
   final bool isVoted;
   final String? selectedOption;
   final String? createdByEmail;
+  final String? createdByUserId;
 
   const VoteDetailScreen({
     Key? key,
@@ -20,6 +23,7 @@ class VoteDetailScreen extends StatefulWidget {
     required this.isVoted,
     this.selectedOption,
     this.createdByEmail,
+    this.createdByUserId,
   }) : super(key: key);
 
   @override
@@ -28,12 +32,25 @@ class VoteDetailScreen extends StatefulWidget {
 
 class _VoteDetailScreenState extends State<VoteDetailScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ReportService _reportService = ReportService();
+  final BlockService _blockService = BlockService();
   String? _selectedOption;
+  bool _isBlocked = false;
 
   @override
   void initState() {
     super.initState();
     _selectedOption = widget.selectedOption;
+    _checkIfBlocked();
+  }
+
+  Future<void> _checkIfBlocked() async {
+    if (widget.createdByUserId != null) {
+      final isBlocked = await _blockService.isUserBlocked(widget.createdByUserId!);
+      setState(() {
+        _isBlocked = isBlocked;
+      });
+    }
   }
 
   void _selectOption(String option) {
@@ -97,12 +114,184 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
     }
   }
 
+  void _showReportDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('投稿を通報'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('この投稿を通報する理由を選択してください'),
+            const SizedBox(height: 16),
+            ListTile(
+              title: const Text('不適切なコンテンツ'),
+              onTap: () => _submitReport('不適切なコンテンツ'),
+            ),
+            ListTile(
+              title: const Text('スパム'),
+              onTap: () => _submitReport('スパム'),
+            ),
+            ListTile(
+              title: const Text('嫌がらせ'),
+              onTap: () => _submitReport('嫌がらせ'),
+            ),
+            ListTile(
+              title: const Text('その他'),
+              onTap: () => _submitReport('その他'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitReport(String reason) async {
+    Navigator.pop(context); // ダイアログを閉じる
+
+    if (widget.createdByUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('投稿者情報が取得できませんでした')),
+      );
+      return;
+    }
+
+    try {
+      await _reportService.reportPost(
+        postId: widget.postId,
+        reportedUserId: widget.createdByUserId!,
+        reason: reason,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('通報を受け付けました')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('通報に失敗しました: $e')),
+      );
+    }
+  }
+
+  void _showBlockDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_isBlocked ? 'ユーザーのブロック解除' : 'ユーザーをブロック'),
+        content: Text(
+          _isBlocked
+              ? 'このユーザーのブロックを解除しますか？'
+              : 'このユーザーをブロックすると、このユーザーの投稿が表示されなくなります。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: _isBlocked ? _unblockUser : _blockUser,
+            child: Text(_isBlocked ? 'ブロック解除' : 'ブロック'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _blockUser() async {
+    Navigator.pop(context); // ダイアログを閉じる
+
+    if (widget.createdByUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('投稿者情報が取得できませんでした')),
+      );
+      return;
+    }
+
+    try {
+      await _blockService.blockUser(widget.createdByUserId!);
+      setState(() {
+        _isBlocked = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ユーザーをブロックしました')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ブロックに失敗しました: $e')),
+      );
+    }
+  }
+
+  Future<void> _unblockUser() async {
+    Navigator.pop(context); // ダイアログを閉じる
+
+    if (widget.createdByUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('投稿者情報が取得できませんでした')),
+      );
+      return;
+    }
+
+    try {
+      await _blockService.unblockUser(widget.createdByUserId!);
+      setState(() {
+        _isBlocked = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ブロックを解除しました')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ブロック解除に失敗しました: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
         backgroundColor: Colors.blue,
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'report') {
+                _showReportDialog();
+              } else if (value == 'block') {
+                _showBlockDialog();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'report',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('投稿を通報'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'block',
+                child: Row(
+                  children: [
+                    Icon(_isBlocked ? Icons.check_circle : Icons.block, 
+                         color: _isBlocked ? Colors.green : Colors.orange),
+                    const SizedBox(width: 8),
+                    Text(_isBlocked ? 'ブロック解除' : 'ユーザーをブロック'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: ListView(
         children: [

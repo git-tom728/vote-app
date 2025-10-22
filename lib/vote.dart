@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'vote_detail.dart';
+import 'services/block_service.dart';
 
 class VoteScreen extends StatefulWidget {
   const VoteScreen({Key? key}) : super(key: key);
@@ -14,10 +15,13 @@ class VoteScreen extends StatefulWidget {
 
 class _VoteScreenState extends State<VoteScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final BlockService _blockService = BlockService();
   // 選択された選択肢を保持する変数
   Map<String, String?> _selectedOptions = {};
   // 投票済みの投稿を管理する変数
   Set<String> _votedPosts = {};
+  // ブロックしているユーザーのID
+  Set<String> _blockedUserIds = {};
   // 展開されている投稿を管理する変数
   // Set<String> _expandedPosts = {};
 
@@ -26,6 +30,16 @@ class _VoteScreenState extends State<VoteScreen> {
     super.initState();
     // 初期化時に投票済みの投稿を取得
     _loadVotedPosts();
+    // ブロックしているユーザーを取得
+    _loadBlockedUsers();
+  }
+
+  // ブロックしているユーザーを取得する
+  Future<void> _loadBlockedUsers() async {
+    final blockedIds = await _blockService.getBlockedUserIds();
+    setState(() {
+      _blockedUserIds = blockedIds;
+    });
   }
 
   // 投票済みの投稿を取得する
@@ -307,9 +321,12 @@ class _VoteScreenState extends State<VoteScreen> {
           final currentUserId = FirebaseAuth.instance.currentUser?.uid;
           
           // 自分以外のユーザーの投稿のみをフィルタリング
+          // かつブロックしているユーザーの投稿を除外
           final posts = allPosts.where((doc) {
             final post = doc.data() as Map<String, dynamic>;
-            return post['userId'] != currentUserId;
+            final postUserId = post['userId'] as String?;
+            return post['userId'] != currentUserId && 
+                   (postUserId == null || !_blockedUserIds.contains(postUserId));
           }).toList();
 
           if (posts.isEmpty) {
@@ -332,6 +349,7 @@ class _VoteScreenState extends State<VoteScreen> {
               final isVoted = _votedPosts.contains(postId);
               // final isExpanded = _expandedPosts.contains(postId);
               final createdByEmail = post['createdByEmail'] as String?;
+              final createdByUserId = post['userId'] as String?;
 
               return Card(
                 margin: const EdgeInsets.all(1),
@@ -386,13 +404,16 @@ class _VoteScreenState extends State<VoteScreen> {
                           isVoted: isVoted,
                           selectedOption: _selectedOptions[postId],
                           createdByEmail: createdByEmail,
-                  ),
+                          createdByUserId: createdByUserId,
+                        ),
                       ),
                     );
                     
                     if (result == true) {
                       _loadVotedPosts(); // 投票後に状態を更新
                     }
+                    // ブロック状態が変更された可能性があるため再読み込み
+                    _loadBlockedUsers();
                   },
                 ),
               );

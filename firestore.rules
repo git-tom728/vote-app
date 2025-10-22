@@ -36,5 +36,31 @@ service cloud.firestore {
       allow delete: if request.auth != null 
         && request.auth.uid == resource.data.userId;
     }
+
+    // 通報のルール
+    match /reports/{reportId} {
+      // 自分が通報したものだけ読める
+      allow read: if request.auth != null 
+        && request.auth.uid == resource.data.reportedBy;
+      // 誰でも通報を作成できる
+      allow create: if request.auth != null
+        && request.resource.data.reportedBy == request.auth.uid;
+      // 通報の更新・削除は禁止（管理者のみFirebaseコンソールから操作）
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ブロックリストのルール
+    match /users/{userId}/blockedUsers/{blockedUserId} {
+      // 自分のブロックリストのみ読み書き可能
+      allow read: if request.auth != null 
+        && request.auth.uid == userId;
+      allow create: if request.auth != null 
+        && request.auth.uid == userId;
+      allow delete: if request.auth != null 
+        && request.auth.uid == userId;
+      // ブロックリストの更新は禁止（作成と削除のみ）
+      allow update: if false;
+    }
   }
 }
