@@ -108,8 +108,10 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
       );
       Navigator.pop(context, true); // 投票成功を通知
     } catch (e) {
+      // エラーの詳細をログに出力
+      print('投票エラー: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('投票に失敗しました。')),
+        SnackBar(content: Text('投票に失敗しました: ${e.toString()}')),
       );
     }
   }
@@ -293,15 +295,31 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
           ),
         ],
       ),
-      body: ListView(
-        children: [
-          if (widget.createdByEmail != null)
-            ListTile(
-              title: const Text('投稿者'),
-              subtitle: Text(widget.createdByEmail!),
-            ),
-          const Divider(),
-          ...widget.options.keys.map((option) => Column(
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('posts')
+            .doc(widget.postId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final postData = snapshot.data!.data() as Map<String, dynamic>;
+          final options = Map<String, dynamic>.from(postData['options']);
+          final optionsList = postData.containsKey('optionsList') 
+              ? List<String>.from(postData['optionsList'])
+              : options.keys.toList();
+
+          return ListView(
+            children: [
+              if (widget.createdByEmail != null)
+                ListTile(
+                  title: const Text('投稿者'),
+                  subtitle: Text(widget.createdByEmail!),
+                ),
+              const Divider(),
+              ...optionsList.map((option) => Column(
             children: [
               ListTile(
                 title: Text(option),
@@ -309,7 +327,7 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '${widget.options[option] ?? 0}票',
+                      '${options[option] ?? 0}票',
                       style: const TextStyle(
                         color: Colors.grey,
                       ),
@@ -340,7 +358,9 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
               ),
             ),
           ],
-        ],
+            ],
+          );
+        },
       ),
     );
   }

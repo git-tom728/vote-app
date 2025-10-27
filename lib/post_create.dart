@@ -32,6 +32,14 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     if (user == null) return;
 
     try {
+      // 選択肢を順番を保持するためにリストとして保存
+      final optionsList = [
+        _option1Controller.text,
+        _option2Controller.text,
+        _option3Controller.text,
+      ];
+      
+      // 互換性のため、旧形式のMapも保存
       final options = {
         _option1Controller.text: 0,
         _option2Controller.text: 0,
@@ -41,6 +49,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
       await FirebaseFirestore.instance.collection('posts').add({
         'title': _titleController.text,
         'options': options,
+        'optionsList': optionsList, // 順番を保持
         'userId': user.uid,
         'createdByEmail': user.email,
         'createdAt': FieldValue.serverTimestamp(),

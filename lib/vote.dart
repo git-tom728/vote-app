@@ -37,6 +37,7 @@ class _VoteScreenState extends State<VoteScreen> {
   // ブロックしているユーザーを取得する
   Future<void> _loadBlockedUsers() async {
     final blockedIds = await _blockService.getBlockedUserIds();
+    if (!mounted) return; // ウィジェットが破棄されていたら処理を中断
     setState(() {
       _blockedUserIds = blockedIds;
     });
@@ -51,6 +52,8 @@ class _VoteScreenState extends State<VoteScreen> {
         .collection('votes')
         .where('userId', isEqualTo: user.uid)
         .get();
+
+    if (!mounted) return; // ウィジェットが破棄されていたら処理を中断
 
     setState(() {
       _votedPosts = votesSnapshot.docs

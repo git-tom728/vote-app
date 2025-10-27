@@ -22,8 +22,13 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
-      allow update: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
+      // 投稿者本人による更新、または投票によるoptionsフィールドの更新を許可
+      allow update: if request.auth != null && (
+        // 投稿者本人による更新
+        request.auth.uid == resource.data.userId ||
+        // 投票による options フィールドのみの更新を許可
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['options']))
+      );
       allow delete: if request.auth != null 
         && request.auth.uid == resource.data.userId;
     }
@@ -31,7 +36,9 @@ service cloud.firestore {
     // 投票のルール
     match /votes/{voteId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      // 投票を作成する際、userIdが自分自身であることを確認
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
       allow update: if false;  // 投票の更新は禁止
       allow delete: if request.auth != null 
         && request.auth.uid == resource.data.userId;
