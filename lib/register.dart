@@ -62,12 +62,16 @@ class _RegisterPageState extends State<RegisterPage> {
         throw Exception('ユーザー情報が取得できませんでした');
       }
       
+      // ニックネームの処理
+      final nickname = _nicknameController.text.trim();
+      
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .set({
         'userId': _userId,
         'email': _emailController.text.trim(),
+        if (nickname.isNotEmpty) 'username': nickname, // ニックネームが入力されていれば保存
         'createdAt': FieldValue.serverTimestamp(),
       });
 
