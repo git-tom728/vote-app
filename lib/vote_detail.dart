@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/report_service.dart';
 import 'services/block_service.dart';
+import 'config/debug_config.dart';
 
 class VoteDetailScreen extends StatefulWidget {
   final String postId;
@@ -109,7 +110,7 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
       Navigator.pop(context, true); // 投票成功を通知
     } catch (e) {
       // エラーの詳細をログに出力
-      print('投票エラー: $e');
+      DebugConfig.debugError('投票エラー', error: e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('投票に失敗しました: ${e.toString()}')),
       );

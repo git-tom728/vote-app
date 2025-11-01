@@ -777,7 +777,7 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
                               margin: const EdgeInsets.only(top: 20),
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Color(EnvironmentConfig.environmentColor).withOpacity(0.1),
+                                color: Color(EnvironmentConfig.environmentColor).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: Color(EnvironmentConfig.environmentColor),

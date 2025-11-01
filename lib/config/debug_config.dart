@@ -2,6 +2,8 @@
 /// デモ用の一時的なデバッグログ設定
 /// 後で簡単に無効化できるように独立したファイルとして作成
 
+// ignore_for_file: avoid_print
+
 class DebugConfig {
   // 🚨 デモ後は必ず false に戻すこと！
   static const bool enableDebugLogs = false;
