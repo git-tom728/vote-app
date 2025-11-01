@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/user_service.dart';
 import 'login.dart';
+import 'constants/regions.dart';
+import 'config/environment.dart';
 
 class MyselfPage extends StatefulWidget {
   const MyselfPage({super.key});
@@ -23,6 +25,7 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
   String? _errorMessage;
   late AnimationController _animationController;
   late Animation<double> _animation;
+  String _selectedRegion = Regions.defaultPrefecture;
 
   @override
   void initState() {
@@ -108,6 +111,7 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
         setState(() {
           userProfile = profile;
           _usernameController.text = profile?['username'] ?? '';
+          _selectedRegion = profile?['region'] ?? Regions.defaultPrefecture;
           this.postCount = postCount;
           this.voteCount = voteCount;
           _isLoading = false;
@@ -168,6 +172,48 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
         if (!mounted) return;
         setState(() {
           _errorMessage = 'ユーザー名の更新に失敗しました。もう一度お試しください。';
+        });
+        _showError(_errorMessage!);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = '更新中にエラーが発生しました。時間をおいて再度お試しください。';
+      });
+      _showError(_errorMessage!);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // 地域の更新
+  Future<void> _updateRegion(String newRegion) async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      final success = await _userService.updateRegion(newRegion);
+      if (success) {
+        setState(() {
+          _selectedRegion = newRegion;
+          userProfile = {
+            ...userProfile!,
+            'region': newRegion,
+          };
+        });
+
+        if (!mounted) return;
+        _showSuccess('地域を更新しました');
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _errorMessage = '地域の更新に失敗しました。もう一度お試しください。';
         });
         _showError(_errorMessage!);
       }
@@ -651,6 +697,46 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
                                             const SizedBox(height: 8),
                                           ],
                                           Text('メールアドレス: ${user.email}'),
+                                          const SizedBox(height: 16),
+                                          // 地域選択プルダウン
+                                          Row(
+                                            children: [
+                                              const Text('地域: '),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    border: Border.all(color: Colors.grey.shade300),
+                                                  ),
+                                                  child: DropdownButtonHideUnderline(
+                                                    child: DropdownButton<String>(
+                                                      value: _selectedRegion,
+                                                      isExpanded: true,
+                                                      icon: Icon(Icons.arrow_drop_down, color: Colors.blue.shade600),
+                                                      style: TextStyle(
+                                                        color: Colors.grey.shade800,
+                                                        fontSize: 14,
+                                                      ),
+                                                      items: Regions.prefectures.map((String prefecture) {
+                                                        return DropdownMenuItem<String>(
+                                                          value: prefecture,
+                                                          child: Text(prefecture),
+                                                        );
+                                                      }).toList(),
+                                                      onChanged: _isLoading ? null : (String? newValue) {
+                                                        if (newValue != null && newValue != _selectedRegion) {
+                                                          _updateRegion(newValue);
+                                                        }
+                                                      },
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                           const SizedBox(height: 8),
                                           Text('投稿数: $postCount'),
                                           const SizedBox(height: 8),
@@ -685,6 +771,59 @@ class _MyselfPageState extends State<MyselfPage> with SingleTickerProviderStateM
                               ),
                             ),
                           ),
+                          // 環境情報の表示（開発環境のみ）
+                          if (EnvironmentConfig.isDevelopment)
+                            Container(
+                              margin: const EdgeInsets.only(top: 20),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Color(EnvironmentConfig.environmentColor).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Color(EnvironmentConfig.environmentColor),
+                                  width: 2,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.info_outline,
+                                        color: Color(EnvironmentConfig.environmentColor),
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '環境情報',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(EnvironmentConfig.environmentColor),
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '現在の環境: ${EnvironmentConfig.environmentName}',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'このデータはテスト用です',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           Container(
                             margin: const EdgeInsets.only(top: 20),
                             width: double.infinity,

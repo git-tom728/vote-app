@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vote/services/log_service.dart';
 import 'package:vote/config/debug_config.dart';
+import 'package:vote/constants/regions.dart';
 
 class UserService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -241,6 +242,62 @@ class UserService {
       );
       _logService.stopTrace('get_vote_count');
       rethrow;
+    }
+  }
+
+  // 地域（都道府県）の更新
+  Future<bool> updateRegion(String region) async {
+    try {
+      DebugConfig.debugLog('地域更新開始', data: {'region': region});
+      _logService.startTrace('update_region');
+      final user = _auth.currentUser;
+      if (user == null) {
+        DebugConfig.debugWarning('ユーザーがログインしていません');
+        _logService.logWarning('ユーザーがログインしていません');
+        return false;
+      }
+
+      // バリデーション
+      if (!Regions.isValidPrefecture(region)) {
+        DebugConfig.debugError('無効な都道府県', error: region);
+        _logService.logWarning('無効な都道府県が指定されました', data: {'region': region});
+        return false;
+      }
+
+      // 地域の更新
+      await _firestore.collection('users').doc(user.uid).update({
+        'region': region,
+        'lastUpdate': FieldValue.serverTimestamp(),
+      });
+
+      DebugConfig.debugSuccess('地域更新成功', data: {'uid': user.uid, 'region': region});
+      _logService.logInfo(
+        '地域の更新に成功',
+        data: {'uid': user.uid, 'region': region},
+      );
+      _logService.logEvent(
+        name: 'region_updated',
+        parameters: {
+          'uid': user.uid,
+          'region': region,
+        },
+      );
+      _logService.stopTrace('update_region');
+      return true;
+    } catch (e, stackTrace) {
+      DebugConfig.debugError('地域更新エラー', error: e, stackTrace: stackTrace);
+      _logService.logError(
+        e,
+        stackTrace,
+        reason: '地域の更新に失敗',
+        parameters: {
+          'uid': _auth.currentUser?.uid,
+          'region': region,
+        },
+        errorCode: LogService.errorCodes['USER_PROFILE_UPDATE'],
+      );
+      _logService.stopTrace('update_region');
+      return false;
     }
   }
 

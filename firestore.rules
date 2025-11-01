@@ -10,7 +10,7 @@ service cloud.firestore {
         && request.auth.uid == userId
         // 更新可能なフィールドを制限
         && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['username', 'lastUpdate'])
+            .hasOnly(['username', 'region', 'lastUpdate'])
         // タイムスタンプが正しい形式かチェック
         && request.resource.data.lastUpdate is timestamp
         // タイムスタンプが現在時刻に近いかチェック（5分以内）

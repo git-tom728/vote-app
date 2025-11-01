@@ -4,15 +4,52 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
+import 'config/firebase_options_dev.dart';
+import 'config/environment.dart';
 import 'login.dart';
 import 'post.dart';
 import 'vote.dart';
 import 'myself.dart';
 import 'config/debug_config.dart';
+import 'services/version_service.dart';
+import 'widgets/update_dialog.dart';
 
-void main() async {
+/// メインエントリーポイント（本番環境）
+void main() => mainWithEnvironment(Environment.production);
+
+/// 開発環境用エントリーポイント
+void mainDev() => mainWithEnvironment(Environment.development);
+
+/// 環境を指定してアプリを起動
+Future<void> mainWithEnvironment(Environment environment) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  // 環境を設定
+  EnvironmentConfig.setEnvironment(environment);
+  DebugConfig.debugLog('環境設定', data: {
+    'environment': EnvironmentConfig.environmentName,
+    'isDevelopment': EnvironmentConfig.isDevelopment,
+  });
+  
+  // 環境に応じたFirebase設定を使用
+  final firebaseOptions = EnvironmentConfig.isDevelopment
+      ? DevelopmentFirebaseOptions.currentPlatform
+      : DefaultFirebaseOptions.currentPlatform;
+  
+  await Firebase.initializeApp(options: firebaseOptions);
+  DebugConfig.debugSuccess('Firebase初期化完了', data: {
+    'projectId': firebaseOptions.projectId,
+    'environment': EnvironmentConfig.environmentName,
+  });
+  
+  // バージョンサービスの初期化
+  try {
+    await VersionService().initialize();
+    DebugConfig.debugSuccess('VersionService初期化完了');
+  } catch (e) {
+    DebugConfig.debugError('VersionService初期化エラー（アプリは続行）', error: e);
+  }
+  
   runApp(const MyApp());
 }
 
@@ -22,9 +59,22 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Firebase Login Demo',
+      title: 'Vote App',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: const AuthGate(),
+      // 開発環境の場合はバナーを表示
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        if (EnvironmentConfig.isDevelopment) {
+          return Banner(
+            message: EnvironmentConfig.environmentShortName,
+            location: BannerLocation.topEnd,
+            color: Color(EnvironmentConfig.environmentColor),
+            child: child!,
+          );
+        }
+        return child!;
+      },
     );
   }
 }
@@ -77,6 +127,28 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  
+  @override
+  void initState() {
+    super.initState();
+    // アプリ起動時にバージョンチェック
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForUpdates();
+    });
+  }
+  
+  /// バージョンチェックを実行
+  Future<void> _checkForUpdates() async {
+    if (!mounted) return;
+    
+    try {
+      DebugConfig.debugLog('バージョンチェック開始');
+      await UpdateDialog.checkAndShowIfNeeded(context);
+    } catch (e) {
+      DebugConfig.debugError('バージョンチェックエラー', error: e);
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
